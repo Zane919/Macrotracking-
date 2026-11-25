@@ -2,7 +2,7 @@
 /* MacroTracking - PWA offline-first.
    Dati salvati solo sul telefono (localStorage). Database alimenti: CREA. Codici a barre: Open Food Facts. */
 (() => {
-  const VERSION = '2.0.0';
+  const VERSION = '2.0.1';
   const KEY = 'contacalorie.v1';
 
   const MEALS = [
