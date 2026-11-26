@@ -2,7 +2,7 @@
 /* MacroTracking - PWA offline-first.
    Dati salvati solo sul telefono (localStorage). Database alimenti: CREA. Codici a barre: Open Food Facts. */
 (() => {
-  const VERSION = '2.0.2';
+  const VERSION = '2.1.0';
   const KEY = 'contacalorie.v1';
 
   const MEALS = [
@@ -94,14 +94,25 @@
     return [...m.values()].sort((x, y) => (x.date < y.date ? -1 : 1));
   }
 
+  // Acqua: [{ date:'YYYY-MM-DD', l }] litri bevuti nel giorno, una sola voce per giorno, in ordine di data
+  function normWater(list) {
+    if (!Array.isArray(list)) return [];
+    const m = new Map();
+    for (const w of list) {
+      const l = Number(w && w.l);
+      if (w && /^\d{4}-\d{2}-\d{2}$/.test(String(w.date)) && Number.isFinite(l) && l > 0) m.set(w.date, { date: w.date, l });
+    }
+    return [...m.values()].sort((x, y) => (x.date < y.date ? -1 : 1));
+  }
+
   /* ---------- storage ---------- */
   let S = load();
   function load() {
     try {
       const r = JSON.parse(localStorage.getItem(KEY));
-      if (r && Array.isArray(r.entries)) return { entries: r.entries, goals: normGoals(r.goals), foods: r.foods || [], weights: normWeights(r.weights) };
+      if (r && Array.isArray(r.entries)) return { entries: r.entries, goals: normGoals(r.goals), foods: r.foods || [], weights: normWeights(r.weights), water: normWater(r.water) };
     } catch (e) { /* dati corrotti: riparto da zero */ }
-    return { entries: [], goals: [], foods: [], weights: [] };
+    return { entries: [], goals: [], foods: [], weights: [], water: [] };
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
@@ -197,7 +208,7 @@
       const rem = goal - val;
       const left = rem > 0.05 ? `Mancano <b>${fmt(rem, 1)} g</b>` : o ? `Oltre di <b>${fmt(-rem, 1)} g</b>` : 'Obiettivo raggiunto';
       return `<div class="macro ${cls}${o ? ' over' : ''}">
-        <div class="mtop"><b>${label}</b><span class="${o ? 'over' : ''}">${fmtM(val)} / ${fmt(goal, 0)} g</span></div>
+        <div class="mtop"><b>${label}</b><span class="${o ? 'over' : ''}">${fmt(val, 1)} / ${fmt(goal, 0)} g</span></div>
         <div class="bar" role="progressbar" aria-label="${label}" aria-valuenow="${Math.round(val)}" aria-valuemin="0" aria-valuemax="${Math.round(goal)}"><i style="width:${w}%"></i></div>
         <div class="mleft${o ? ' over' : ''}">${left}</div></div>`;
     };
@@ -206,7 +217,7 @@
       const list = dayEntries.filter((e) => e.meal === m.id).sort((a, b) => a.ts - b.ts);
       const mt = sum(list);
       const mk = mt.k;
-      const totRow = list.length ? `<div class="meal-tot" aria-label="Totale ${m.name}"><b>Totale</b><span><b>${fmt(mt.k, 0)}</b> kcal</span><span>P <b>${fmtM(mt.p)}</b></span><span>C <b>${fmtM(mt.c)}</b></span><span>G <b>${fmtM(mt.f)}</b></span></div>` : '';
+      const totRow = list.length ? `<div class="meal-tot" aria-label="Totale ${m.name}"><b>Totale</b><span><b>${fmt(mt.k, 0)}</b> kcal</span><span>P <b>${fmt(mt.p, 1)}</b></span><span>C <b>${fmt(mt.c, 1)}</b></span><span>G <b>${fmt(mt.f, 1)}</b></span></div>` : '';
       const rows = list.map((e) => {
         const v = entryVals(e);
         return `<button type="button" class="entry" data-act="edit-entry" data-id="${esc(e.id)}">
@@ -710,7 +721,7 @@
         const j = JSON.parse(rd.result); const d = j && j.data ? j.data : j;
         if (!d || !Array.isArray(d.entries)) throw new Error('formato');
         if (!confirm(`Importare il backup (${d.entries.length} voci)? I dati attuali verranno sostituiti.`)) return;
-        S = { entries: d.entries, goals: normGoals(d.goals), foods: d.foods || [], weights: normWeights(d.weights) }; gDraft = null; save(); render(); toast('Backup importato');
+        S = { entries: d.entries, goals: normGoals(d.goals), foods: d.foods || [], weights: normWeights(d.weights), water: normWater(d.water) }; gDraft = null; save(); render(); toast('Backup importato');
       } catch (e) { toast('File di backup non valido'); }
     };
     rd.readAsText(file);
@@ -758,6 +769,17 @@
     'delete-entry': () => deleteEntry(),
     'save-goals': () => saveGoals(),
     'save-weight': () => saveWeight(),
+    'water-add': (el) => {
+      const add = parseFloat(el.dataset.l); const cur = S.water.find((x) => x.date === wtDate); const before = cur ? cur.l : 0;
+      setWater(wtDate, before + add); render();
+      toast('Aggiunti ' + fmtL(add) + ' l', { label: 'Annulla', fn: () => { setWater(wtDate, before); render(); } });
+    },
+    'save-water': () => saveWater(),
+    'delete-water': (el) => {
+      const w = S.water.find((x) => x.date === el.dataset.date); if (!w) return;
+      S.water = S.water.filter((x) => x !== w); save(); render();
+      toast('Acqua eliminata', { label: 'Annulla', fn: () => { S.water = normWater([...S.water, w]); save(); render(); } });
+    },
     'delete-weight': (el) => {
       const w = S.weights.find((x) => x.date === el.dataset.date); if (!w) return;
       S.weights = S.weights.filter((x) => x !== w); save(); render();
@@ -800,6 +822,7 @@
     if (e.target.id === 'wdate') {
       const w = S.weights.find((x) => x.date === e.target.value); $('#wkg').value = w ? fmtKg(w.kg) : '';
     }
+    if (e.target.id === 'adate' && e.target.value) { wtDate = e.target.value > todayISO() ? todayISO() : e.target.value; render(); }
     if (e.target.id === 'datePick') { if (e.target.value) { curDate = e.target.value; render(); } }
     if (e.target.id === 'importFile' && e.target.files[0]) { importData(e.target.files[0]); e.target.value = ''; }
   });
@@ -930,14 +953,56 @@
     save(); render(); toast('Peso salvato: ' + fmtKg(kg1) + ' kg');
   }
 
+  /* ================== ACQUA ================== */
+  let wtDate = todayISO();
+  const fmtL = (n) => (Number.isFinite(n) ? n : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function setWater(date, l) {
+    l = Math.round(l * 100) / 100;
+    S.water = normWater([...S.water.filter((w) => w.date !== date), ...(l > 0 ? [{ date, l }] : [])]);
+    save();
+  }
+  function renderWater() {
+    const t = todayISO(); if (wtDate > t) wtDate = t;
+    const cur = S.water.find((w) => w.date === wtDate); const lit = cur ? cur.l : 0;
+    const recent = [...S.water].reverse().slice(0, 14);
+    const mx = Math.max(...recent.map((w) => w.l), 0.01);
+    const hist = recent.map((w) => `<div class="list-row lr-water"><div class="lr-main"><b>${fmtL(w.l)} l</b><small>${parseISO(w.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</small><div class="wbar"><i style="width:${(w.l / mx * 100).toFixed(1)}%"></i></div></div>
+      <button type="button" class="x" data-act="delete-water" data-date="${w.date}" aria-label="Elimina acqua del ${w.date}">✕</button></div>`).join('');
+    $('#app').innerHTML = `
+      <section class="card">
+        <h2>${wtDate === t ? 'Acqua di oggi' : 'Acqua del ' + longDate(wtDate)}</h2>
+        <div class="wbig"><b>${fmtL(lit)}</b><span>l</span><small>${dayWord(wtDate)}</small></div>
+        <div class="wquick" role="group" aria-label="Aggiungi acqua">
+          <button type="button" class="btn" data-act="water-add" data-l="0.25">+0,25 l</button>
+          <button type="button" class="btn" data-act="water-add" data-l="0.5">+0,5 l</button>
+          <button type="button" class="btn" data-act="water-add" data-l="1">+1 l</button>
+        </div>
+        <form id="waterForm" novalidate>
+          <div class="field"><label for="wl">Imposta il totale della giornata (litri)</label><input class="in" id="wl" inputmode="decimal" placeholder="es. 1,5" value="${cur ? fmtL(cur.l) : ''}" autocomplete="off"></div>
+          <div class="field"><label for="adate">Data</label><input class="in" type="date" id="adate" value="${wtDate}" max="${t}"></div>
+          <button type="button" class="btn primary" data-act="save-water">Salva acqua</button>
+        </form>
+      </section>
+      ${hist ? `<section class="card"><h2>Ultimi giorni</h2>${hist}</section>` : '<section class="card"><p class="hint">Qui compare lo storico dell\'acqua bevuta giorno per giorno.</p></section>'}`;
+  }
+  function saveWater() {
+    const l = parseNum($('#wl').value); const date = $('#adate').value || todayISO();
+    if (!(l >= 0 && l <= 20)) return toast('Inserisci una quantità valida (litri)');
+    if (date > todayISO()) return toast('La data non può essere nel futuro');
+    wtDate = date; setWater(date, l); render();
+    toast(l > 0 ? 'Acqua salvata: ' + fmtL(Math.round(l * 100) / 100) + ' l' : 'Acqua azzerata');
+  }
+
   function render() {
     $('#nav-diary').classList.toggle('active', view === 'diary');
     $('#nav-goals').classList.toggle('active', view === 'goals');
     $('#nav-weight').classList.toggle('active', view === 'weight');
+    $('#nav-water').classList.toggle('active', view === 'water');
     $('#nav-diary').setAttribute('aria-current', view === 'diary' ? 'page' : 'false');
     $('#nav-goals').setAttribute('aria-current', view === 'goals' ? 'page' : 'false');
     $('#nav-weight').setAttribute('aria-current', view === 'weight' ? 'page' : 'false');
-    if (view === 'diary') renderDiary(); else if (view === 'weight') renderWeight(); else renderGoals();
+    $('#nav-water').setAttribute('aria-current', view === 'water' ? 'page' : 'false');
+    if (view === 'diary') renderDiary(); else if (view === 'weight') renderWeight(); else if (view === 'water') renderWater(); else renderGoals();
   }
   render();
 
@@ -946,7 +1011,7 @@
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       const t = todayISO();
-      if (t !== lastDay) { if (curDate === lastDay) curDate = t; lastDay = t; if (!modalOpen) render(); }
+      if (t !== lastDay) { if (curDate === lastDay) curDate = t; if (wtDate === lastDay) wtDate = t; lastDay = t; if (!modalOpen) render(); }
       if (modalOpen && screen === 'add' && addState.tab === 'scan' && !stream) startScan();
     } else { stopScan(); }
   });

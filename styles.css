@@ -348,3 +348,10 @@ h1.page { font-size: 1.5rem; margin: 4px 2px 14px; }
 .wk-r { text-align: right; flex: none; }
 .wk-r b { display: block; font-weight: 700; }
 .wk-r small { display: block; font-size: 0.82rem; color: var(--muted); }
+
+/* schermata acqua */
+.wquick { display: flex; gap: 8px; margin: 4px 0 16px; }
+.wquick .btn { flex: 1; min-height: 46px; padding: 8px 6px; }
+.lr-water .lr-main { flex: 1; }
+.wbar { height: 6px; border-radius: 999px; background: var(--line); margin-top: 6px; overflow: hidden; }
+.wbar i { display: block; height: 100%; border-radius: 999px; background: #4f9be8; }

@@ -39,3 +39,6 @@ Se cancelli i dati di Chrome o disinstalli l'app, i dati si perdono: fai ogni ta
 - La scansione del codice a barre usa un lettore integrato (barcode.js) perché Safari non ha il lettore nativo di Chrome. Legge EAN-13, EAN-8 e UPC-A; tieni il telefono fermo, ben illuminato, a 10–20 cm.
 - Torcia e vibrazione di solito non sono disponibili su iPhone. In ogni caso puoi digitare il codice a mano.
 - I dati dell'app installata sono separati da quelli di Safari: usa il backup in Obiettivi se cambi dispositivo.
+
+## Acqua (versione 2.1.0)
+Nuova sezione "Acqua" nella barra in basso: totale giornaliero in litri, pulsanti rapidi +0,25 / +0,5 / +1 l, impostazione manuale del totale, scelta della data e storico degli ultimi giorni. I dati sono compresi nel backup.
