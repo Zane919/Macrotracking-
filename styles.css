@@ -62,7 +62,8 @@ small { color: var(--muted); }
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   display: flex; align-items: center; justify-content: flex-start; gap: 4px;
   height: calc(var(--nav-h) + var(--sab));
-  padding: 0 12px var(--sab);
+  /* su schermi larghi la barra resta allineata alla colonna centrale (max 560px), come sul telefono */
+  padding: 0 max(12px, calc((100% - 560px) / 2 + 12px)) var(--sab);
   background: color-mix(in srgb, var(--card) 94%, transparent);
   backdrop-filter: blur(10px);
   border-top: 1px solid var(--line);

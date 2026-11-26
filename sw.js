@@ -1,5 +1,5 @@
 /* Service worker: l'app funziona anche senza rete (tranne la ricerca dei codici a barre). */
-const CACHE = 'macrotracking-v2.1.1';
+const CACHE = 'macrotracking-v2.1.2';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './foods.js', './barcode.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png'];
 
