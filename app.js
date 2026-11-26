@@ -2,7 +2,7 @@
 /* MacroTracking - PWA offline-first.
    Dati salvati solo sul telefono (localStorage). Database alimenti: CREA. Codici a barre: Open Food Facts. */
 (() => {
-  const VERSION = '2.1.0';
+  const VERSION = '2.1.1';
   const KEY = 'contacalorie.v1';
 
   const MEALS = [
@@ -970,8 +970,8 @@
       <button type="button" class="x" data-act="delete-water" data-date="${w.date}" aria-label="Elimina acqua del ${w.date}">✕</button></div>`).join('');
     $('#app').innerHTML = `
       <section class="card">
-        <h2>${wtDate === t ? 'Acqua di oggi' : 'Acqua del ' + longDate(wtDate)}</h2>
-        <div class="wbig"><b>${fmtL(lit)}</b><span>l</span><small>${dayWord(wtDate)}</small></div>
+        <h2>${wtDate === t ? 'Acqua bevuta oggi' : 'Acqua bevuta il ' + longDate(wtDate)}</h2>
+        <div class="wbig wcenter"><div class="wnum"><b>${fmtL(lit)}</b><span>l</span></div>${wtDate === t ? '' : `<small>${dayWord(wtDate)}</small>`}</div>
         <div class="wquick" role="group" aria-label="Aggiungi acqua">
           <button type="button" class="btn" data-act="water-add" data-l="0.25">+0,25 l</button>
           <button type="button" class="btn" data-act="water-add" data-l="0.5">+0,5 l</button>

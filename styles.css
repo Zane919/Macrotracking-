@@ -355,3 +355,6 @@ h1.page { font-size: 1.5rem; margin: 4px 2px 14px; }
 .lr-water .lr-main { flex: 1; }
 .wbar { height: 6px; border-radius: 999px; background: var(--line); margin-top: 6px; overflow: hidden; }
 .wbar i { display: block; height: 100%; border-radius: 999px; background: #4f9be8; }
+.wcenter { flex-direction: column; align-items: center; gap: 4px; margin-bottom: 12px; }
+.wcenter .wnum { display: flex; align-items: baseline; gap: 6px; }
+.wcenter small { margin-left: 0; }
