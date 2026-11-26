@@ -2,7 +2,7 @@
 /* MacroTracking - PWA offline-first.
    Dati salvati solo sul telefono (localStorage). Database alimenti: CREA. Codici a barre: Open Food Facts. */
 (() => {
-  const VERSION = '2.0.1';
+  const VERSION = '2.0.2';
   const KEY = 'contacalorie.v1';
 
   const MEALS = [
@@ -798,7 +798,7 @@
   });
   document.addEventListener('change', (e) => {
     if (e.target.id === 'wdate') {
-      const w = S.weights.find((x) => x.date === e.target.value); $('#wkg').value = w ? fmt(w.kg, 1) : '';
+      const w = S.weights.find((x) => x.date === e.target.value); $('#wkg').value = w ? fmtKg(w.kg) : '';
     }
     if (e.target.id === 'datePick') { if (e.target.value) { curDate = e.target.value; render(); } }
     if (e.target.id === 'importFile' && e.target.files[0]) { importData(e.target.files[0]); e.target.value = ''; }
@@ -806,13 +806,16 @@
 
   /* ---------- render ---------- */
   /* ================== PESO ================== */
-  const fmtKg = (n) => (Number.isFinite(n) ? n : 0).toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const fmtKg = (n) => (Number.isFinite(n) ? n : 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // differenze esatte (nessun arrotondamento): si elimina solo il rumore dei numeri in virgola mobile
+  const dz = (x) => (Math.abs(x) < 1e-9 ? 0 : x);
+  const fmtD = (x) => (Math.abs(x) > 0 && Math.abs(x) < 0.005 ? 'meno di 0,01' : fmtKg(Math.abs(x)));
   const dayNum = (s) => Math.round(parseISO(s).getTime() / 86400000);
   const shortDate = (s) => parseISO(s).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }).replace('.', '');
   const longDate = (s) => parseISO(s).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
   const weekStart = (s) => addDays(s, -dayIdx(s));
   const sgn = (x) => (x > 0 ? '+' : x < 0 ? '−' : '');
-  const dkg = (x) => sgn(Math.round(x * 10) / 10) + fmtKg(Math.abs(x)) + ' kg';
+  const dkg = (x) => sgn(x) + fmtD(x) + ' kg';
   function dayWord(date) {
     const n = dayNum(todayISO()) - dayNum(date);
     return n === 0 ? 'oggi' : n === 1 ? 'ieri' : longDate(date);
@@ -837,7 +840,7 @@
     const X = (d) => (d1 === d0 ? L + (W - L - R) / 2 : L + ((dayNum(d) - d0) / (d1 - d0)) * (W - L - R));
     const Y = (kg) => T + (1 - (kg - y0) / (y1 - y0)) * (H - T - B);
     let grid = '';
-    for (let v = y0; v <= y1 + 1e-9; v += step) grid += `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="wgrid"/><text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" text-anchor="end">${fmt(v, step < 1 ? 1 : 0)}</text>`;
+    for (let v = y0; v <= y1 + 1e-9; v += step) grid += `<line x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" class="wgrid"/><text x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" text-anchor="end">${fmtKg(v)}</text>`;
     const pts = data.map((d) => `${X(d.date).toFixed(1)},${Y(d.kg).toFixed(1)}`);
     const dots = data.map((d, i) => `<circle cx="${X(d.date).toFixed(1)}" cy="${Y(d.kg).toFixed(1)}" r="${i === data.length - 1 ? 5 : 3.5}" class="wdot${i === data.length - 1 ? ' last' : ''}"/>
       <circle cx="${X(d.date).toFixed(1)}" cy="${Y(d.kg).toFixed(1)}" r="14" fill="transparent" data-act="w-point" data-i="${i}" data-date="${d.date}" data-kg="${d.kg}"/>`).join('');
@@ -861,10 +864,10 @@
       const prev = ws[ws.length - 2];
       let line = '<span class="wd flat">Primo peso registrato</span>';
       if (prev) {
-        const diff = Math.round((last.kg - prev.kg) * 10) / 10;
+        const diff = dz(last.kg - prev.kg);
         const when = dayNum(last.date) - dayNum(prev.date) === 1 ? 'ieri' : 'al ' + longDate(prev.date);
-        line = diff > 0 ? `<span class="wd up">▲ Più alto di <b>${fmtKg(diff)} kg</b> rispetto a ${when} (${fmtKg(prev.kg)} kg)</span>`
-          : diff < 0 ? `<span class="wd down">▼ Più basso di <b>${fmtKg(-diff)} kg</b> rispetto a ${when} (${fmtKg(prev.kg)} kg)</span>`
+        line = diff > 0 ? `<span class="wd up">▲ Più alto di <b>${fmtD(diff)} kg</b> rispetto a ${when} (${fmtKg(prev.kg)} kg)</span>`
+          : diff < 0 ? `<span class="wd down">▼ Più basso di <b>${fmtD(diff)} kg</b> rispetto a ${when} (${fmtKg(prev.kg)} kg)</span>`
           : `<span class="wd flat">= Uguale a ${when} (${fmtKg(prev.kg)} kg)</span>`;
       }
       cmp = `<div class="wbig"><b>${fmtKg(last.kg)}</b><span>kg</span><small>${dayWord(last.date)}</small></div>${line}`;
@@ -878,9 +881,9 @@
     else {
       let res = '';
       if (cur && prevWk) {
-        const diff = Math.round((cur.avg - prevWk.avg) * 10) / 10;
-        res = diff > 0 ? `<span class="wd up">▲ Salita di <b>${fmtKg(diff)} kg</b> rispetto alla settimana scorsa</span>`
-          : diff < 0 ? `<span class="wd down">▼ Scesa di <b>${fmtKg(-diff)} kg</b> rispetto alla settimana scorsa</span>`
+        const diff = dz(cur.avg - prevWk.avg);
+        res = diff > 0 ? `<span class="wd up">▲ Salita di <b>${fmtD(diff)} kg</b> rispetto alla settimana scorsa</span>`
+          : diff < 0 ? `<span class="wd down">▼ Scesa di <b>${fmtD(diff)} kg</b> rispetto alla settimana scorsa</span>`
           : '<span class="wd flat">= Invariata rispetto alla settimana scorsa</span>';
       } else if (cur) res = '<span class="wd flat">Nessuna pesata la settimana scorsa: non c\'è un confronto.</span>';
       else res = '<span class="wd flat">Questa settimana non hai ancora inserito pesi.</span>';
@@ -889,13 +892,13 @@
     }
     const wkList = [...wk].reverse().slice(0, 8).map((x) => {
       const p = wk.find((y) => y.start === addDays(x.start, -7));
-      const d = p ? Math.round((x.avg - p.avg) * 10) / 10 : null;
+      const d = p ? dz(x.avg - p.avg) : null;
       return `<div class="list-row"><div class="lr-main"><b>${weekLabel(x.start)}</b><small>${x.n} ${x.n === 1 ? 'pesata' : 'pesate'}</small></div>
-        <div class="wk-r"><b>${fmtKg(x.avg)} kg</b><small>${d === null ? '—' : d === 0 ? 'invariata' : (d > 0 ? '▲ ' : '▼ ') + fmtKg(Math.abs(d)) + ' kg'}</small></div></div>`;
+        <div class="wk-r"><b>${fmtKg(x.avg)} kg</b><small>${d === null ? '—' : d === 0 ? 'invariata' : (d > 0 ? '▲ ' : '▼ ') + fmtD(d) + ' kg'}</small></div></div>`;
     }).join('');
     const hist = [...ws].reverse().slice(0, 30).map((w, i, arr) => {
       const idx = ws.indexOf(w); const p = ws[idx - 1];
-      const d = p ? Math.round((w.kg - p.kg) * 10) / 10 : null;
+      const d = p ? dz(w.kg - p.kg) : null;
       return `<div class="list-row"><div class="lr-main"><b>${fmtKg(w.kg)} kg</b><small>${parseISO(w.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}${d === null ? '' : ' · ' + (d === 0 ? 'invariato' : dkg(d))}</small></div>
         <button type="button" class="x" data-act="delete-weight" data-date="${w.date}" aria-label="Elimina peso del ${w.date}">✕</button></div>`;
     }).join('');
@@ -904,7 +907,7 @@
       <section class="card">
         <h2>${todayW ? 'Peso di oggi (puoi aggiornarlo)' : 'Inserisci il peso di oggi'}</h2>
         <form id="weightForm" novalidate>
-          <div class="field"><label for="wkg">Peso (kg)</label><input class="in" id="wkg" inputmode="decimal" placeholder="es. 72,4" value="${todayW ? fmtKg(todayW.kg) : ''}" autocomplete="off"></div>
+          <div class="field"><label for="wkg">Peso (kg)</label><input class="in" id="wkg" inputmode="decimal" placeholder="es. 72,45" value="${todayW ? fmtKg(todayW.kg) : ''}" autocomplete="off"></div>
           <div class="field"><label for="wdate">Data</label><input class="in" type="date" id="wdate" value="${t}" max="${t}"></div>
           <button type="button" class="btn primary" data-act="save-weight">Salva peso</button>
         </form>
@@ -922,7 +925,7 @@
     const kg = parseNum($('#wkg').value); const date = $('#wdate').value || todayISO();
     if (!(kg >= 20 && kg <= 400)) return toast('Inserisci un peso valido (kg)');
     if (date > todayISO()) return toast('La data non può essere nel futuro');
-    const kg1 = Math.round(kg * 10) / 10;
+    const kg1 = Math.round(kg * 100) / 100;   // si conservano due cifre decimali
     S.weights = normWeights([...S.weights.filter((w) => w.date !== date), { date, kg: kg1 }]);
     save(); render(); toast('Peso salvato: ' + fmtKg(kg1) + ' kg');
   }
