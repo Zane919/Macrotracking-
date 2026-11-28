@@ -2,7 +2,7 @@
 /* MacroTracking - PWA offline-first.
    Dati salvati solo sul telefono (localStorage). Database alimenti: CREA. Codici a barre: Open Food Facts. */
 (() => {
-  const VERSION = '2.1.2';
+  const VERSION = '2.2.0';
   const KEY = 'contacalorie.v1';
 
   const MEALS = [
@@ -123,7 +123,7 @@
   /* ---------- food database ---------- */
   const CREA = (window.CREA_FOODS || []).map((r) => ({
     key: 'crea:' + r[0], name: r[1], brand: '', src: 'crea',
-    per100: { k: r[2], p: r[3], f: r[4], c: r[5] }, _n: norm(r[1]),
+    per100: { k: r[2], p: r[3], f: r[4], c: r[5], fi: r[7] || 0 }, _n: norm(r[1]),
   }));
   const foodIndex = new Map(); // key -> food (per ritrovare l'alimento toccato in lista)
   CREA.forEach((f) => foodIndex.set(f.key, f));
@@ -165,10 +165,13 @@
   }
 
   /* ---------- calcoli ---------- */
-  const scale = (per100, g) => ({ k: (per100.k * g) / 100, p: (per100.p * g) / 100, c: (per100.c * g) / 100, f: (per100.f * g) / 100 });
-  const entryVals = (e) => scale(e.per100, e.grams);
+  // fibre per 100 g: se manca (voci inserite prima di questa funzione) per gli alimenti CREA si legge dal database, altrimenti 0
+  const creaFibre = new Map(CREA.map((f) => [f.key, f.per100.fi]));   // non si usa foodIndex: l'elenco dei recenti ne sostituisce le voci
+  const fi100 = (per100, key) => (Number.isFinite(per100.fi) ? per100.fi : creaFibre.get(key) || 0);
+  const scale = (per100, g, key) => ({ k: (per100.k * g) / 100, p: (per100.p * g) / 100, c: (per100.c * g) / 100, f: (per100.f * g) / 100, fi: (fi100(per100, key) * g) / 100 });
+  const entryVals = (e) => scale(e.per100, e.grams, e.key);
   function sum(list) {
-    return list.reduce((a, e) => { const v = entryVals(e); return { k: a.k + v.k, p: a.p + v.p, c: a.c + v.c, f: a.f + v.f }; }, { k: 0, p: 0, c: 0, f: 0 });
+    return list.reduce((a, e) => { const v = entryVals(e); return { k: a.k + v.k, p: a.p + v.p, c: a.c + v.c, f: a.f + v.f, fi: a.fi + v.fi }; }, { k: 0, p: 0, c: 0, f: 0, fi: 0 });
   }
   function goalsFor(date) {
     const wd = dayIdx(date);
@@ -217,7 +220,7 @@
       const list = dayEntries.filter((e) => e.meal === m.id).sort((a, b) => a.ts - b.ts);
       const mt = sum(list);
       const mk = mt.k;
-      const totRow = list.length ? `<div class="meal-tot" aria-label="Totale ${m.name}"><b>Totale</b><span><b>${fmt(mt.k, 0)}</b> kcal</span><span>P <b>${fmt(mt.p, 1)}</b></span><span>C <b>${fmt(mt.c, 1)}</b></span><span>G <b>${fmt(mt.f, 1)}</b></span></div>` : '';
+      const totRow = list.length ? `<div class="meal-tot" aria-label="Totale ${m.name}"><b>Totale</b><span><b>${fmt(mt.k, 0)}</b> kcal</span><span>P <b>${fmt(mt.p, 1)}</b></span><span>C <b>${fmt(mt.c, 1)}</b></span><span>G <b>${fmt(mt.f, 1)}</b></span><span>Fi <b>${fmt(mt.fi, 1)}</b></span></div>` : '';
       const rows = list.map((e) => {
         const v = entryVals(e);
         return `<button type="button" class="entry" data-act="edit-entry" data-id="${esc(e.id)}">
@@ -253,6 +256,7 @@
       </section>
       <section class="card"><div class="macros">
         ${macro('p', 'Proteine', tot.p, g.p)}${macro('c', 'Carboidrati', tot.c, g.c)}${macro('f', 'Grassi', tot.f, g.f)}
+        <div class="macro fibre"><div class="mtop"><b>Fibre</b><span class="fibtot">${fmt(tot.fi, 1)} g</span></div></div>
       </div></section>
       ${mealsHtml}`;
   }
@@ -513,7 +517,7 @@
     const g = (k) => { const x = parseFloat(n[k]); return Number.isFinite(x) ? x : null; };
     let kcal = g('energy-kcal_100g');
     if (kcal == null) { const kj = g('energy_100g'); if (kj != null) kcal = kj / 4.184; }
-    const pr = g('proteins_100g'); const c = g('carbohydrates_100g'); const f = g('fat_100g');
+    const pr = g('proteins_100g'); const c = g('carbohydrates_100g'); const f = g('fat_100g'); const fib = g('fiber_100g');
     const name = String(p.product_name_it || p.product_name || '').trim();
     const brand = String(p.brands || '').split(',')[0].trim();
     if (kcal == null && pr == null && c == null && f == null) return { incomplete: true, name, brand };
@@ -521,7 +525,7 @@
     const pack = parseFloat(p.product_quantity); const serving = parseFloat(p.serving_quantity);
     return {
       name: name || 'Prodotto ' + code, brand, barcode: code, src: 'off',
-      per100: { k: kcal, p: pr || 0, c: c || 0, f: f || 0 },
+      per100: { k: kcal, p: pr || 0, c: c || 0, f: f || 0, fi: fib || 0 },
       pack: Number.isFinite(pack) && pack > 0 ? pack : null,
       serving: Number.isFinite(serving) && serving > 0 ? serving : null,
     };
@@ -582,6 +586,7 @@
         <div class="field"><label for="mF">Grassi (g)</label><input class="in" id="mF" inputmode="decimal"></div>
         <div class="field"><label for="mC">Carboidrati (g)</label><input class="in" id="mC" inputmode="decimal"></div>
         <div class="field"><label for="mP">Proteine (g)</label><input class="in" id="mP" inputmode="decimal"></div>
+        <div class="field"><label for="mFi">Fibre (g) <small>— facoltativo</small></label><input class="in" id="mFi" inputmode="decimal"></div>
       </div>
       <label class="check"><input type="checkbox" id="mSave" checked> Salva tra i miei alimenti</label>
       <div id="manualErr"></div>
@@ -594,14 +599,14 @@
     const val = (id) => { const raw = $(id).value.trim(); return raw === '' ? 0 : parseNum(raw); };
     const kRaw = $('#mK').value.trim();
     let k = kRaw === '' ? NaN : parseNum(kRaw);
-    const p = val('#mP'); const c = val('#mC'); const f = val('#mF');
+    const p = val('#mP'); const c = val('#mC'); const f = val('#mF'); const fi = val('#mFi');
     if (!name) return err('Scrivi il nome dell\'alimento.');
     if (!(grams > 0)) return err('Indica la quantità in grammi (maggiore di 0).');
-    if ([p, c, f].some((x) => !Number.isFinite(x) || x < 0)) return err('I macro devono essere numeri positivi.');
+    if ([p, c, f, fi].some((x) => !Number.isFinite(x) || x < 0)) return err('I macro e le fibre devono essere numeri positivi.');
     if (kRaw !== '' && !(k >= 0)) return err('Le calorie devono essere un numero positivo.');
     if (kRaw === '') { if (p + c + f === 0) return err('Inserisci almeno le calorie o i macro.'); k = 4 * p + 4 * c + 9 * f; }
     const factor = manualMode === 'qty' ? 100 / grams : 1;
-    const per100 = { k: k * factor, p: p * factor, c: c * factor, f: f * factor };
+    const per100 = { k: k * factor, p: p * factor, c: c * factor, f: f * factor, fi: fi * factor };
     const barcode = (addState.prefill && addState.prefill.barcode) || '';  // presente solo se arrivo da una scansione non riconosciuta
     let key = 'tmp:' + uid(); let rec = null;
     if ($('#mSave').checked) {
@@ -634,7 +639,7 @@
       <div class="mhead"><button type="button" class="icon" data-act="back" aria-label="Indietro">←</button><h2>${edit ? 'Modifica' : 'Quantità'}</h2></div>
       <div class="mbody">
         <div class="food-title"><h3>${esc(f.name)}</h3><p>${f.brand ? esc(f.brand) + ' · ' : ''}${badge}</p></div>
-        <p class="per100">Ogni 100 g: <b>${fmt(f.per100.k, 0)} kcal</b> · P ${fmt(f.per100.p, 1)} · C ${fmt(f.per100.c, 1)} · G ${fmt(f.per100.f, 1)}</p>
+        <p class="per100">Ogni 100 g: <b>${fmt(f.per100.k, 0)} kcal</b> · P ${fmt(f.per100.p, 1)} · C ${fmt(f.per100.c, 1)} · G ${fmt(f.per100.f, 1)} · Fibre ${fmt(fi100(f.per100, f.key), 1)}</p>
         <label class="lbl" for="grams">Quanto ne mangi?</label>
         <div class="gram-wrap">
           <button type="button" class="step" data-act="step" data-d="-10" aria-label="Diminuisci di 10 grammi">−</button>
@@ -643,7 +648,7 @@
         </div>
         <div class="chips wrap" id="gchips">${chipsG.map((x) => `<button type="button" class="chip" data-act="chip-g" data-g="${x.g}">${x.l}</button>`).join('')}</div>
         <div class="card preview" aria-live="polite"><div class="pk" id="pk"></div>
-          <div class="pm"><div class="p"><b id="pp"></b><span>Proteine</span></div><div class="c"><b id="pc"></b><span>Carboidrati</span></div><div class="f"><b id="pf"></b><span>Grassi</span></div></div></div>
+          <div class="pm"><div class="p"><b id="pp"></b><span>Proteine</span></div><div class="c"><b id="pc"></b><span>Carboidrati</span></div><div class="f"><b id="pf"></b><span>Grassi</span></div><div class="fi"><b id="pfi"></b><span>Fibre</span></div></div></div>
         ${f.src === 'off' ? '<p class="hint">Valori da Open Food Facts (inseriti dagli utenti): se qualcosa non torna, confrontali con l\'etichetta.</p>' : ''}
         <div class="lbl" style="margin-top:12px">Pasto</div>
         ${mealChips(c.meal, 'qty-meal')}
@@ -661,9 +666,9 @@
   function currentGrams() { return parseNum($('#grams').value); }
   function updateQty() {
     const c = qtyCtx; const g = currentGrams(); const ok = g > 0 && g <= 20000;
-    const v = ok ? scale(c.food.per100, g) : { k: 0, p: 0, c: 0, f: 0 };
+    const v = ok ? scale(c.food.per100, g, c.food.key) : { k: 0, p: 0, c: 0, f: 0, fi: 0 };
     $('#pk').innerHTML = `${fmt(v.k, 0)} <small>kcal</small>`;
-    $('#pp').textContent = fmt(v.p, 1) + ' g'; $('#pc').textContent = fmt(v.c, 1) + ' g'; $('#pf').textContent = fmt(v.f, 1) + ' g';
+    $('#pp').textContent = fmt(v.p, 1) + ' g'; $('#pc').textContent = fmt(v.c, 1) + ' g'; $('#pf').textContent = fmt(v.f, 1) + ' g'; $('#pfi').textContent = fmt(v.fi, 1) + ' g';
     const btn = $('#saveBtn');
     btn.disabled = !ok;
     btn.textContent = c.mode === 'edit' ? 'Salva modifiche' : 'Aggiungi a ' + mealName(c.meal).toLowerCase();

@@ -42,3 +42,6 @@ Se cancelli i dati di Chrome o disinstalli l'app, i dati si perdono: fai ogni ta
 
 ## Acqua (versione 2.1.0)
 Nuova sezione "Acqua" nella barra in basso: totale giornaliero in litri, pulsanti rapidi +0,25 / +0,5 / +1 l, impostazione manuale del totale, scelta della data e storico degli ultimi giorni. I dati sono compresi nel backup.
+
+## Fibre (versione 2.2.0)
+Il riepilogo della giornata mostra anche il totale delle fibre (riga "Fibre" sotto i grassi) e i totali di ogni pasto riportano "Fi". Le fibre arrivano da: database CREA, Open Food Facts (se il prodotto le riporta) e dal nuovo campo facoltativo "Fibre (g)" nell'inserimento manuale. Gli alimenti CREA già registrati prima ricevono le fibre in automatico; i prodotti Open Food Facts o manuali registrati prima della 2.2.0 non hanno il dato e contano 0.

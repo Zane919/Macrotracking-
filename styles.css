@@ -293,7 +293,7 @@ h1.page { font-size: 1.5rem; margin: 4px 2px 14px; }
 .mbody .chips.meals { flex-wrap: wrap; overflow: visible; }
 .ring .mid span { font-size: 0.68rem; max-width: 84px; margin: 2px auto 0; line-height: 1.15; }
 
-.meal-tot { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--accent-soft); font-size: 0.9rem; }
+.meal-tot { display: flex; flex-wrap: wrap; gap: 4px 9px; align-items: baseline; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--accent-soft); font-size: 0.9rem; }
 .meal-tot > b { margin-right: auto; }
 .meal-tot span { color: var(--muted); white-space: nowrap; }
 .meal-tot span b { color: var(--ink); }
@@ -359,3 +359,9 @@ h1.page { font-size: 1.5rem; margin: 4px 2px 14px; }
 .wcenter { flex-direction: column; align-items: center; gap: 4px; margin-bottom: 12px; }
 .wcenter .wnum { display: flex; align-items: baseline; gap: 6px; }
 .wcenter small { margin-left: 0; }
+
+/* fibre */
+.macro.fibre .mtop { margin-bottom: 0; }
+.macro.fibre .mtop span { color: var(--ink); font-weight: 700; }
+.pm .fi { grid-column: 1 / -1; display: flex; justify-content: center; align-items: baseline; gap: 8px; }
+.pm .fi b { display: inline; font-size: 1rem; }
